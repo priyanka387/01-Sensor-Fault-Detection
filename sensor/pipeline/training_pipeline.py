@@ -1,7 +1,7 @@
 from sensor.entity.config_entity import TrainingPipelineConfig,DataIngestionConfig,DataValidationConfig,DataTransformationConfig
 from sensor.entity.artifact_entity import DataIngestionArtifact, DataValidationArtifact,DataTransformationArtifact
-from sensor.entity.artifact_entity import ModelEvaluationArtifact, ModelTrainerArtifact,ModelPusherArtifact
-from sensor.entity.config_entity import ModelEvaluationConfig,ModelTrainerConfig,ModelPusherConfig
+from sensor.entity.artifact_entity import ModelEvaluationArtifact,ModelPusherArtifact,ModelTrainerArtifact
+from sensor.entity.config_entity import ModelPusherConfig,ModelEvaluationConfig,ModelTrainerConfig
 from sensor.exception import SensorException
 import sys,os
 from sensor.logger import logging
@@ -12,13 +12,11 @@ from sensor.components.model_trainer import ModelTrainer
 from sensor.components.model_evaluation import ModelEvaluation
 from sensor.components.model_pusher import ModelPusher
 from sensor.constant.training_pipeline import SAVED_MODEL_DIR
-
 class TrainPipeline:
-    
+    is_pipeline_running=False
     def __init__(self):
         self.training_pipeline_config = TrainingPipelineConfig()
-        
-        #self.training_pipeline_config=training_pipeline_config
+        #self.s3_sync = S3Sync()
         
  
     def start_data_ingestion(self)->DataIngestionArtifact:
@@ -87,14 +85,21 @@ class TrainPipeline:
         
     def run_pipeline(self):
         try:
+            
+            TrainPipeline.is_pipeline_running=True
+
             data_ingestion_artifact:DataIngestionArtifact = self.start_data_ingestion()
             data_validation_artifact=self.start_data_validaton(data_ingestion_artifact=data_ingestion_artifact)
             data_transformation_artifact = self.start_data_transformation(data_validation_artifact=data_validation_artifact)
             model_trainer_artifact = self.start_model_trainer(data_transformation_artifact)
             model_eval_artifact = self.start_model_evaluation(data_validation_artifact, model_trainer_artifact)
+            if not model_eval_artifact.is_model_accepted:
+                raise Exception("Trained model is not better than the best model")
             model_pusher_artifact = self.start_model_pusher(model_eval_artifact)
-        except Exception as e:
-            raise SensorException(e,sys)
+            TrainPipeline.is_pipeline_running=False
+        except  Exception as e:
+            TrainPipeline.is_pipeline_running=False
+            raise  SensorException(e,sys)
 
 
 

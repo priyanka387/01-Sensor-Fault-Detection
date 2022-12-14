@@ -88,8 +88,5 @@ def main():
 
 if __name__=="__main__":
     main()
-    # set_env_variable(env_file_path)
+    #set_env_variable(env_file_path)
     #app_run(app, host=APP_HOST, port=APP_PORT)
-
-
-
